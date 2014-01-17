@@ -3,6 +3,7 @@ source 'https://rubygems.org'
 ruby '1.9.3'
 gem 'rails', '3.2.15'
 gem 'bootstrap-sass', '2.1'
+gem 'bcrypt-ruby', '3.0.1'
 
 group :development, :test do
   gem 'rspec-rails', '2.14.0'
@@ -13,6 +14,10 @@ group :development, :test do
   gem 'spork', '0.9.2'
 
   gem 'coderay', '1.0.8'
+end
+
+group :development do
+  gem 'annotate', '2.5.0'
 end
 
 # Gems used only for assets and not required
