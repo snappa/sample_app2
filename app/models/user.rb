@@ -17,6 +17,10 @@ class User < ActiveRecord::Base
   # Make sure email addresses are ALL stored lower case as well as unique.
   before_save { email.downcase! }
 
+  # the after_validation removes the cryptic "Password digest can't be blank" message
+  # that will surely confuse users.  There is still a "Password can't be blank message"
+  after_validation { self.errors.messages.delete(:password_digest) }
+
   validates :name, presence: true, length: { maximum: 50 }
   VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
   validates :email, presence: true, format: { with: VALID_EMAIL_REGEX },

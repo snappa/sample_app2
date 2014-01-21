@@ -29,6 +29,44 @@ describe "User pages" do
       it "should not create a user" do
         expect { click_button submit }.not_to change(User, :count)
       end
+
+      describe "after submission" do
+        before { click_button submit }
+
+        it { should have_selector('title', text: 'Sign up') }
+        it { should have_content('error') }
+      end
+
+      # EXERCISE 7.6, #2, WDS tests
+      describe "name to long" do
+        before do
+          fill_in "Name", with: ("a" * 51)
+          fill_in "Email", with: "foo@bar.com"
+          fill_in "Password", with: "foobar"
+          fill_in "Confirmation", with: "foobar"
+          click_button submit
+        end
+
+        it { should have_selector('div', text: 'form contains 1 error') }
+        it { should have_content('Name is too long (maximum is 50 characters') }
+
+      end
+
+      describe "name to long and invalid email" do
+        before do
+          fill_in "Name", with: ("a" * 51)
+          fill_in "Email", with: "bar.com"
+          fill_in "Password", with: "foobar"
+          fill_in "Confirmation", with: "foobar"
+          click_button submit
+        end
+
+        it { should have_selector('div', text: 'form contains 2 errors') }
+        it { should have_content('Name is too long (maximum is 50 characters') }
+        it { should have_content('Email is invalid') }
+
+      end
+
     end
 
     describe "with valid information" do
@@ -41,6 +79,19 @@ describe "User pages" do
 
       it "should create a user" do
         expect { click_button submit }.to change(User, :count).by(1)
+      end
+
+      describe "after saving the user" do
+        before {
+          @b4UserCreateCount = User.all.count
+          click_button submit
+        }
+        let(:user) { User.find_by_email('user@example.com') }
+
+        aftaCreate = User.all.count
+        aftaCreate.should_not == @b4UserCreateCount
+        it { should have_selector('title', text: user.name) }
+        it { should have_selector('div.alert.alert-success', text: 'Welcome to the Sample App!') }
       end
     end
   end
