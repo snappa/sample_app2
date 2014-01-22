@@ -16,6 +16,7 @@ class User < ActiveRecord::Base
 
   # Make sure email addresses are ALL stored lower case as well as unique.
   before_save { email.downcase! }
+  before_save :create_remember_token
 
   # the after_validation removes the cryptic "Password digest can't be blank" message
   # that will surely confuse users.  There is still a "Password can't be blank message"
@@ -27,5 +28,11 @@ class User < ActiveRecord::Base
 		    uniqueness: { case_sensitive: false }
   validates :password, presence: true, length: { minimum: 6 }
   validates :password_confirmation, presence: true
+
+  private
+
+  def create_remember_token
+    self.remember_token = SecureRandom.urlsafe_base64
+  end
 
 end
