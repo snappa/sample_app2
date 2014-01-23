@@ -20,6 +20,9 @@ describe "AuthenticationPages" do
       it { should have_selector('title', text: 'Sign in') }
       it { should have_selector('div.alert.alert-error', text: 'Invalid') }
 
+      it { should_not have_link('Profile') }
+      it { should_not have_link('Settings') }
+
       describe "after visiting another page" do
         before { click_link "Home" }
         it { should_not have_selector('div.alert.alert-error') }
@@ -41,6 +44,12 @@ describe "AuthenticationPages" do
         before { click_link "Sign out" }
         it { should have_link('Sign in') }
       end
+
+      describe "can not create new user" do
+        before { visit new_user_path }
+        it { should have_selector('div.alert.alert-info') }
+      end
+
     end
   end
 
@@ -52,15 +61,27 @@ describe "AuthenticationPages" do
       describe "when attempting to visit a protected page" do
         before do
           visit edit_user_path(user)
-          fill_in "Email",    with: user.email
-          fill_in "Password", with: user.password
-          click_button "Sign in"
+          sign_in user
         end
 
         describe "after signing in" do
 
           it "should render the desired protected page" do
             page.should have_selector('title', text: 'Edit user')
+          end
+
+          describe "when signing in again" do
+            before do
+              delete signout_path
+              visit signin_path
+              fill_in "Email",    with: user.email
+              fill_in "Password", with: user.password
+              click_button "Sign in"
+            end
+
+            it "should render the default (profile) page" do
+              page.should have_selector('title', text: user.name)
+            end
           end
         end
       end

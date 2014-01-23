@@ -2,6 +2,7 @@ class UsersController < ApplicationController
   before_filter :signed_in_user, only: [:index, :edit, :update, :destroy]
   before_filter :correct_user,   only: [:edit, :update]
   before_filter :admin_user,     only: :destroy
+  before_filter :signed_in_user_exclusion, only: [:new, :create]
 
   def index
     @users = User.paginate(page: params[:page])
@@ -42,10 +43,25 @@ class UsersController < ApplicationController
   end
 
   def destroy
-    User.find(params[:id]).destroy
-    flash[:success] = "User destroyed."
+    user = User.find(params[:id])
+    logger.error("**** destroying #{user.email} ****")
+    if (user.id == current_user.id)
+      flash.now[:error] = "You can not delete yourself!"
+      logger.error("You can not delete yourself!")
+    else
+      user.destroy
+      flash[:success] = "User destroyed."
+      logger.error("**** destroyed D2")
+      begin
+        u2 = User.find(params[:id])
+        logger.error("**** destroyed #{user.email}.  U2 found? #{u2.email}")
+      rescue
+        logger.error("****  DID destroy #{user.email}")
+      end
+    end
     redirect_to users_url
   end
+
   
   private
 
@@ -63,6 +79,13 @@ class UsersController < ApplicationController
 
   def admin_user
     redirect_to(root_url) unless current_user.admin?
+  end
+
+  def signed_in_user_exclusion
+    if signed_in?
+      flash[:info] = "You're already logged in and can't create a new user..."
+      redirect_to(root_path)
+    end
   end
 
 end
