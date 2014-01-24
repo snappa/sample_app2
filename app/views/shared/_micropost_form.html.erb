@@ -1,7 +1,21 @@
+<script>
+$( document ).ready(function() {
+  $('#counter').text('Characters left: 140');
+  $('#micropost_content').keyup(function () {
+      var left = 140 - $(this).val().length;
+      if (left < 0) {
+          left = 0;
+      }
+      $('#counter').html('Characters left: ' + left);
+    });
+});
+</script>
+
 <%= form_for(@micropost) do |f| %>
   <%= render 'shared/error_messages', object: f.object %>
   <div class="field">
     <%= f.text_area :content, placeholder: "Compose new micropost..." %>
   </div>
+  <span class="help-block">Characters left:</span><span class="help-block" id="counter"></span>
   <%= f.submit "Post", class: "btn btn-large btn-primary" %>
 <% end %>
