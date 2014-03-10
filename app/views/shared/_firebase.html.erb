@@ -44,13 +44,13 @@
       } else {
         $("#online-friends").append("<li id='"+friendId+"-online'><a href='#'><span id='online-friend-" + friendId + "'>" + friendUsername + " - " + (online ? "ONLINE":"OFFLINE") + "</span></a></li>");
       }
-/*
+/**/
       $("#online-friends").click(function(event) {
         event.preventDefault();
 //        alert("would start chat with " + friendId);
         startChat(friendId);
       });
-*/
+/**/
 //      alert("state change callback.  User: " + friendUsername + " is " + (online ? "ONLINE":"OFFLINE"));
     } else {
 //      alert("online-friends DOES NOT EXIST");
@@ -110,6 +110,7 @@ function startChat(userToChat) {
 //      friendToWatch["example@railstutorial.org"] = "Example User";
     }
     chat.addFriendsToWatch(friendToWatch, friendStateChangeCallback);
+
 
 //    alert("<%= current_user.email %>");
     chat.setUser('<%= current_user.email.sub(".","_") %>', '<%= current_user.name %>');
