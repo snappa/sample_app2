@@ -1,0 +1,178 @@
+<script src="https://cdn.firebase.com/v0/firebase.js"></script>
+
+<!-- Download from https://github.com/firebase/Firechat -->
+<link rel="stylesheet" href="/firechat/firechat-default.css" />
+<script src="/firechat/firechat-default.js"></script>
+<!--
+  -- WDS: Test for the findUsers functionality.
+  --
+<form class="form-inline">
+  <input type="text" id="prefix" name="prefix" class="input-medium" >
+  <button id="find-users" class="btn btn-primary btn-small">Find Users</button>
+</form>
+-->
+<div id="firechat-wrapper"></div>
+<script type='text/javascript'>
+  var chatRef = new Firebase('https://firechattest.firebaseio.com/chat');
+//  alert("FirebaseToken: <%= @myFirebaseToken %>  User: <%= current_user.email %>  UserName <%= current_user.name %>");
+  chatRef.auth("<%= @myFirebaseToken %>", function(error) {
+    if(error) {
+      console.log("Login Failed!", error);
+    } else {
+      console.log("Login Succeeded!");
+    }
+  });
+
+  var chat = undefined;
+  var firechat = undefined;
+  var chatRooms = {};
+
+  function createdByUserId(userId) {
+    // Replace all . with _ in the userId since this will be the user's id in the path.
+    userId = userId.replace(/\./g,"_");
+    userId = userId.replace(/\@/g,"-");
+    return userId.toLowerCase();
+  }
+
+  friendStateChangeCallback = function(friendId, friendUsername, online) {
+    console.log("Top level friend status callback: FriendID: " + friendId + "  FriendUserName: " + friendUsername + "  Is Online? " + online);
+
+    //online-friends
+    if ($("#online-friends").length > 0) {
+      if ($("#"+friendId+"-online").length > 0) {
+        $("#online-friend-"+friendId).text(friendUsername + " - " + (online ? "ONLINE":"OFFLINE"));
+      } else {
+        $("#online-friends").append("<li id='"+friendId+"-online'><a href='#'><span id='#online-friend-" + friendId + "'>" + friendUsername + " - " + (online ? "ONLINE":"OFFLINE") + "</span></a></li>");
+      }
+
+      $("#online-friends").click(function(event) {
+        event.preventDefault();
+//        alert("would start chat with " + friendId);
+        startChat(friendId);
+      });
+//      alert("online-friends exists");
+    } else {
+//      alert("online-friends DOES NOT EXIST");
+    }
+  };
+  
+
+function makeChatName(user1, user2) {
+  var chatName = "";
+  var user1Id = createdByUserId(user1);
+  var user2Id = createdByUserId(user2);
+  if (user1Id < user2Id) {
+    chatName = user1Id + "-" + user2Id;
+  } else {
+    chatName = user2Id + "-" + user1Id;
+  }
+  return chatName;
+}
+
+function startChat(userToChat) {
+// WDS: See if we can get a specific room...
+    var internalChat = chat.getChat();
+    var pRoomId = makeChatName("<%=current_user.email%>", userToChat);
+
+    internalChat.getRoom(pRoomId, function(room) {
+      if (room === undefined || room === null) {
+//        alert("Could not find room\"" + pRoomId + "\"");
+
+        internalChat.createRoomWithId(pRoomId, "private", function(roomId) {
+//          alert("Created room: " + roomId);
+
+          internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
+        });
+      } else {
+//        alert("Found room \"" + pRoomId + "\"" );
+        internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
+      }
+    });
+}
+
+  $( document ).ready(function() {
+    chat = new FirechatUI(chatRef, document.getElementById("firechat-wrapper"));
+
+    var friendToWatch = {};
+    if ("<%= current_user.email %>" === "example@railstutorial.org") {
+      friendToWatch["example-1@railstutorial.org"] = "Rodolfo Schroeder";
+    } else {
+      friendToWatch["example@railstutorial.org"] = "Example User";
+    }
+    chat.addFriendsToWatch(friendToWatch, friendStateChangeCallback);
+
+//    alert("<%= current_user.email %>");
+    chat.setUser('<%= current_user.email.sub(".","_") %>', '<%= current_user.name %>');
+//    alert("Chat setup");
+
+    // WDS: Experiment to see if I can hook right into Firechat.js and build my own UI
+    firechat = new Firechat(chatRef);
+    firechat.on("message-add", function(roomId, message) {
+//      var m = message;
+      console.log("Message sent to room: " + roomId + "  MSG Time: " + new Date(message.timestamp) + "  Message From Name: " + message.name + "  Message: " + message.message);
+    });
+    firechat.on("room-enter", function(roomId, message) {
+      console.log("Entered room..." + roomId.name);
+    });
+
+this.onChatInvite = function() {
+  alert("chat invite");
+}
+this.onChatInviteResponse = function() {
+  alert("chat invite response");
+}
+      // Bind events related to chat invitations.
+      firechat.on('room-invite', this.onChatInvite.bind(this));
+      firechat.on('room-invite-response', this.onChatInviteResponse.bind(this));
+
+//example-1@railstutorial_org
+
+    // Test to see if I can lookup a specific user by prefix.
+    $("#find-users").click(function(event) {
+      event.preventDefault();
+      var prefix = $("#prefix").val();
+//      alert("Looking for match for " + prefix);
+      firechat.getUsersByPrefix(prefix, undefined, undefined, 10, function(users) {
+        if ($.isEmptyObject(users)) {
+          alert("No match found for user prefix of \"" + prefix + "\"");
+        } else {
+          alert("Found " + JSON.stringify(users) + " users...");
+        }
+      });
+    });
+
+    firechat.getRoomList(function(rooms) {
+      console.log("getRoomList.  Total Rooms: " + (rooms == undefined ? "UNDEF":"NOT SURE"));
+      /**/
+//        firechat.$roomList.empty();
+        var roomInfo = "";
+        for (var roomId in rooms) {
+          var room = rooms[roomId];
+          if (room.type == "public") {
+            var newRoom = jQuery.extend(true, {}, room);
+            chatRooms[roomId] = newRoom;
+            if (room.name == "Channelle") {
+              firechat.enterRoom(roomId);
+            }
+          }
+          roomInfo += "Name: + " + room.name + "  Type: " + room.type + " Created At: " + new Date(room.createdAt) + "  By: " + room.createdByUserId + "\n";
+//          room.isRoomOpen = !!firechat.$messages[room.id];
+//          var $roomItem = $(template(room));
+//          $roomItem.children('a').bind('click', selectRoomListItem);
+//          self.$roomList.append($roomItem.toggle(true));
+        }
+        console.log(roomInfo);
+       /**/
+    });
+
+  });
+
+  function onNewMessage(roomId, message) {
+    var userId = message.userId;
+    if (!this._user.muted || !this._user.muted[userId]) {
+      //this.showMessage(roomId, message);
+      alert("Received new message.");
+    }
+  }
+
+</script>
