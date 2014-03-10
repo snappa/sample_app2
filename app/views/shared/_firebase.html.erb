@@ -94,10 +94,19 @@ function startChat(userToChat) {
     chat = new FirechatUI(chatRef, document.getElementById("firechat-wrapper"));
 
     var friendToWatch = {};
+<%
+    users = User.all;
+    users.each do |user|
+    if (!user.email.eql?(current_user.email))
+%>
+    friendToWatch["<%= user.email %>"] = "<%= user.name %>";
+<%  end %>
+<% end -%>
+
     if ("<%= current_user.email %>" === "example@railstutorial.org") {
-      friendToWatch["example-1@railstutorial.org"] = "Rodolfo Schroeder";
+//      friendToWatch["example-1@railstutorial.org"] = "Rodolfo Schroeder";
     } else {
-      friendToWatch["example@railstutorial.org"] = "Example User";
+//      friendToWatch["example@railstutorial.org"] = "Example User";
     }
     chat.addFriendsToWatch(friendToWatch, friendStateChangeCallback);
 
