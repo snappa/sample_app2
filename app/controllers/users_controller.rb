@@ -9,6 +9,8 @@ class UsersController < ApplicationController
   end
 
   def show
+    @myFirebaseToken = gen_firebase_token
+
     @user = User.find(params[:id])
     @microposts = @user.microposts.paginate(page: params[:page])
   end

@@ -10,6 +10,6 @@
     <strong id="followers" class="stat">
       <%= @user.followers.count %>
     </strong>
-    followers
+    follower<%= (@user.followers.count == 1 ? "" : "s") %>
   </a>
 </div>

@@ -10,6 +10,8 @@ gem 'bootstrap-will_paginate', '0.0.6'
 
 gem 'nokogiri', '1.5.10'
 
+gem 'firebase_token_generator'
+
 group :development, :test do
   gem 'rspec-rails', '2.14.0'
   gem 'guard-rspec', '1.2.1'
