@@ -42,7 +42,7 @@
       if ($("#"+friendId+"-online").length > 0) {
         $("#online-friend-"+friendId).text(friendUsername + " - " + (online ? "ONLINE":"OFFLINE"));
       } else {
-        $("#online-friends").append("<li id='"+friendId+"-online'><a href='#'><span id='#online-friend-" + friendId + "'>" + friendUsername + " - " + (online ? "ONLINE":"OFFLINE") + "</span></a></li>");
+        $("#online-friends").append("<li id='"+friendId+"-online'><a href='#'><span id='online-friend-" + friendId + "'>" + friendUsername + " - " + (online ? "ONLINE":"OFFLINE") + "</span></a></li>");
       }
 /*
       $("#online-friends").click(function(event) {
