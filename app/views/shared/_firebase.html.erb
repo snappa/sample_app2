@@ -104,7 +104,7 @@ function isValidChatUserId(userId) {
  */
 function makeChatUserId(userId) {
   if (isValidChatUserId(userId)) {
-    return "chat-user-" + userId;
+    return userIdPrefix + "-chat-user-" + userId;
   } else {
     alert("\"" + userId + "\" is not a valid chat userId.  It contains one or more of the following illegal characters '. $ ] [ # /'");
     return undefined;
@@ -138,6 +138,13 @@ function startChat(userToChat) {
     });
 }
 
+<% if (request.domain.downcase().eql?("localhost")) %>
+  var userIdPrefix = "local";
+<% else %>
+  var userIdPrefix = "remote";
+<% end %>
+
+alert('<%= request.domain.downcase().eql?("localhost") %>');
   $( document ).ready(function() {
     chat = new FirechatUI(chatRef, document.getElementById("firechat-wrapper"));
 
