@@ -144,7 +144,6 @@ function startChat(userToChat) {
   var userIdPrefix = "remote";
 <% end %>
 
-alert('<%= request.domain.downcase().eql?("localhost") %>');
   $( document ).ready(function() {
     chat = new FirechatUI(chatRef, document.getElementById("firechat-wrapper"));
 
