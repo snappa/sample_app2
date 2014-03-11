@@ -128,10 +128,6 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
     // List of friends we want to monitor
     this._friendList = {};
 
-    // List of friends we know are online.  This is indexed by the userId and contains
-    // the username as the value.
-    this._onlineFriends = {};
-
     // Setup and establish default options.
     this._options = options || {};
 
@@ -338,7 +334,7 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
       if (snapshot.val() === true) {
         self._firebase.root().child('.info/authenticated').off();
 
-        self._userId = userIdToFbUserId(userId.toString());
+        self._userId = userId.toString();
         self._userName = userName.toString();
         self._userRef = self._firebase.child('users').child(self._userId);
         self._loadUserMetadata(function() {
@@ -496,29 +492,38 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
     self._onLeaveRoom(roomId);
   };
 
-
+/*
+ * Function that translated a userId to a Firebase UserID.
+ * WDS: Decided to change the API to enforce legal userIds with no:
+    . (period)
+    $ (dollar sign)
+    [ (left square bracket)
+    ] (right square bracket)
+    # (hash or pound sign)
+    / (forward slash)
+ *
   function userIdToFbUserId(userId) {
     // Replace all . with _ in the userId since this will be the user's id in the path.
     userId = userId.replace(/\./g,"_");
     userId = userId.replace(/\@/g,"-");
     return userId.toLowerCase();
   }
-
-  Firechat.prototype.setupWatch = function(friend, cb) {
-      var userKey = userIdToFbUserId(friend);
+ */
+  Firechat.prototype.setupWatch = function(friendUserId, cb) {
+      var userKey = friendUserId;
       var self = this;
       self._friendOnlineOfflineCb = cb;
-      console.log("Setting up to watch for: " + userKey + "  Value: " + self._friendList[friend]);
+      console.log("Setting up to watch for: " + userKey + "  Value: " + self._friendList[friendUserId]);
       var onlineRef = self._userIdsOnlineRef.child(userKey).child("online");
       var p = onlineRef.parent();
-      var f = friend;
+      var f = friendUserId;
       onlineRef.on("value", function(online) {
         var uk = f;
         if (online !== undefined && online !== null) {
           var oval = online.val();
           console.log("UserKey: " + uk + "  Friend List: " + JSON.stringify(self._friendList));
           console.log(onlineRef.parent().toString() + "   User: " + self._friendList[uk] + "  " + (oval ? "Is online" : "Is OFFLINE"));
-          self._friendOnlineOfflineCb(userIdToFbUserId(uk), self._friendList[uk], oval);
+          self._friendOnlineOfflineCb(uk, self._friendList[uk], oval);
         }
       });
   };

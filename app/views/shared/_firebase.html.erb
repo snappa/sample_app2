@@ -27,12 +27,23 @@
   var firechat = undefined;
   var chatRooms = {};
 
+/*
+ * Function that translated a userId to a Firebase UserID.
+ * WDS: Decided to change the API to enforce legal userIds with no:
+    . (period)
+    $ (dollar sign)
+    [ (left square bracket)
+    ] (right square bracket)
+    # (hash or pound sign)
+    / (forward slash)
+ *
   function createdByUserId(userId) {
     // Replace all . with _ in the userId since this will be the user's id in the path.
     userId = userId.replace(/\./g,"_");
     userId = userId.replace(/\@/g,"-");
     return userId.toLowerCase();
   }
+ */
 
   friendStateChangeCallback = function(friendId, friendUsername, online) {
     console.log("Top level friend status callback: FriendID: " + friendId + "  FriendUserName: " + friendUsername + "  Is Online? " + online);
@@ -45,11 +56,6 @@
         $("#online-friends").append("<li id='"+friendId+"-online'><a href='#'><span id='online-friend-" + friendId + "'>" + friendUsername + " - " + (online ? "ONLINE":"OFFLINE") + "</span></a></li>");
       }
 /**/
-      $("#online-friends").click(function(event) {
-        event.preventDefault();
-//        alert("would start chat with " + friendId);
-        startChat(friendId);
-      });
 /**/
 //      alert("state change callback.  User: " + friendUsername + " is " + (online ? "ONLINE":"OFFLINE"));
     } else {
@@ -60,8 +66,10 @@
 
 function makeChatName(user1, user2) {
   var chatName = "";
-  var user1Id = createdByUserId(user1);
-  var user2Id = createdByUserId(user2);
+//  var user1Id = createdByUserId(user1);
+//  var user2Id = createdByUserId(user2);
+  var user1Id = user1;
+  var user2Id = user2;
   if (user1Id < user2Id) {
     chatName = user1Id + "-" + user2Id;
   } else {
@@ -70,10 +78,47 @@ function makeChatName(user1, user2) {
   return chatName;
 }
 
+/*
+ * isValidChatUserId enforces the rules for valid characters in a chat userId.  This
+ * is typically an integer but can be any UUID sans the following characters:
+    . (period)
+    $ (dollar sign)
+    [ (left square bracket)
+    ] (right square bracket)
+    # (hash or pound sign)
+    / (forward slash)
+ */
+function isValidChatUserId(userId) {
+  if (userId.indexOf(".") >= 0 || userId.indexOf("$") >= 0 || userId.indexOf("[") >= 0
+   || userId.indexOf("]") >= 0 || userId.indexOf("#") >= 0 || userId.indexOf("/") >= 0) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+/*
+ * makeChatUserId takes a userId (typically an integer but can be any UUID sans 
+ * (".","$","[","]","#","/") characters.  This is the unique ID used to identify the
+ * user inside the chat system.
+ */
+function makeChatUserId(userId) {
+  if (isValidChatUserId(userId)) {
+    return "chat-user-" + userId;
+  } else {
+    alert("\"" + userId + "\" is not a valid chat userId.  It contains one or more of the following illegal characters '. $ ] [ # /'");
+    return undefined;
+  }
+}
+
+/* 
+ * startChat takes a userId created by makeChatUserId and starts a chat session
+ * between the two users.
+ */
 function startChat(userToChat) {
 // WDS: See if we can get a specific room...
     var internalChat = chat.getChat();
-    var pRoomId = makeChatName("<%=current_user.email%>", userToChat);
+    var pRoomId = makeChatName(makeChatUserId("<%=current_user.id%>"), userToChat);
 
     internalChat.getRoom(pRoomId, function(room) {
       if (room === undefined || room === null) {
@@ -82,11 +127,13 @@ function startChat(userToChat) {
         internalChat.createRoomWithId(pRoomId, "private", function(roomId) {
 //          alert("Created room: " + roomId);
 
-          internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
+//          internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
+          internalChat.inviteUser(userToChat, pRoomId);
         });
       } else {
 //        alert("Found room \"" + pRoomId + "\"" );
-        internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
+//        internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
+        internalChat.inviteUser(userToChat, pRoomId);
       }
     });
 }
@@ -97,23 +144,33 @@ function startChat(userToChat) {
     var friendToWatch = {};
 <%
     users = User.all;
+    count = 0
     users.each do |user|
-    if (!user.email.eql?(current_user.email))
+    count += 1
+    if (count < 6 && (user.id != current_user.id))
 %>
-    friendToWatch["<%= user.email %>"] = "<%= user.name %>";
+    friendToWatch[makeChatUserId("<%= user.id %>")] = "<%= user.name %>";
 <%  end %>
 <% end -%>
 
-    if ("<%= current_user.email %>" === "example@railstutorial.org") {
-//      friendToWatch["example-1@railstutorial.org"] = "Rodolfo Schroeder";
-    } else {
-//      friendToWatch["example@railstutorial.org"] = "Example User";
+    // Populate the list of friends to watch
+    for (friendId in friendToWatch) {
+      if ($("#online-friends").length > 0) {
+        $("#online-friends").append("<li id='"+friendId+"-online'><a href='#'><span id='online-friend-" + friendId + "' uid='" + friendId + "'>" + friendToWatch[friendId] + " -  ???" + "</span></a></li>");
+
+        // Setup the click handler to initiate a chat
+        $("#online-friend-" + friendId).click(function(event) {
+          event.preventDefault();
+//        alert("would start chat with " + friendId + "  OR: " + $(this).attr("uid"));
+          startChat($(this).attr("uid"));
+        });
+      }
     }
     chat.addFriendsToWatch(friendToWatch, friendStateChangeCallback);
 
 
 //    alert("<%= current_user.email %>");
-    chat.setUser('<%= current_user.email.sub(".","_") %>', '<%= current_user.name %>');
+    chat.setUser(makeChatUserId('<%= current_user.id %>'), '<%= current_user.name %>');
 //    alert("Chat setup");
 
     // WDS: Experiment to see if I can hook right into Firechat.js and build my own UI
