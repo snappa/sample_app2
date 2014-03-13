@@ -46,7 +46,7 @@
  */
 
   friendStateChangeCallback = function(friendId, friendUsername, online) {
-    console.log("Top level friend status callback: FriendID: " + friendId + "  FriendUserName: " + friendUsername + "  Is Online? " + online);
+//    console.log("Top level friend status callback: FriendID: " + friendId + "  FriendUserName: " + friendUsername + "  Is Online? " + online);
 
     //online-friends
     if ($("#online-friends").length > 0) {
@@ -120,25 +120,33 @@ function startChat(userToChat) {
     var internalChat = chat.getChat();
     var pRoomId = makeChatName(makeChatUserId("<%=current_user.id%>"), userToChat);
 
-    internalChat.getRoom(pRoomId, function(room) {
-      if (room === undefined || room === null) {
-//        alert("Could not find room\"" + pRoomId + "\"");
+    internalChat.getUser(userToChat, function(user) {
 
-        internalChat.createRoomWithId(pRoomId, "private", function(roomId) {
-//          alert("Created room: " + roomId);
+//      alert("User to chat is: " + JSON.stringify(user));
+      internalChat.getRoom(pRoomId, function(room) {
+        if (room === undefined || room === null) {
+  //        alert("Could not find room\"" + pRoomId + "\"");
 
-//          internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
-          internalChat.inviteUser(userToChat, pRoomId);
-        });
-      } else {
-//        alert("Found room \"" + pRoomId + "\"" );
-//        internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
-        internalChat.inviteUser(userToChat, pRoomId);
-      }
-    });
+          internalChat.createRoom(pRoomId, "private" , function(roomId) {
+  //          alert("Created room: " + roomId);
+
+  //          internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
+  console.log("startChat: inviting user: " + user.name + " to private chat.");
+            internalChat.inviteUser(userToChat, pRoomId, true);
+          }, userToChat, user.name);
+        } else {
+  //        alert("Found room \"" + pRoomId + "\"" );
+  //        internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
+          internalChat.inviteUser(userToChat, pRoomId, true);
+        }
+      });
+
+    })
 }
 
-<% if (request.domain.downcase().eql?("localhost")) %>
+<% if ((request.domain != nil && request.domain.downcase().eql?("localhost")) ||
+        request.host.index("192.168") == 0)
+ %>
   var userIdPrefix = "local";
 <% else %>
   var userIdPrefix = "remote";
@@ -153,7 +161,7 @@ function startChat(userToChat) {
     count = 0
     users.each do |user|
     count += 1
-    if (count < 6 && (user.id != current_user.id))
+    if (count < 106 && (user.id != current_user.id))
 %>
     friendToWatch[makeChatUserId("<%= user.id %>")] = "<%= user.name %>";
 <%  end %>
