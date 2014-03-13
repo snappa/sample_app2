@@ -310,7 +310,7 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
 
       invite.id = invite.id || snapshot.name();
       self.getRoom(invite.roomId, function(room) {
-        invite.toRoomName = room.name;
+        invite.toRoomName = (room.type === 'private' ? 'Private Chat' : room.name);
         self._invokeEventCallbacks('room-invite', invite);
       });
     },
@@ -363,16 +363,36 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
   };
 
   // Create and automatically enter a new chat room.
-  Firechat.prototype.createRoom = function(roomName, roomType, callback) {
+  // Required: roomName
+  // Optional: roomType, callback, invitedUserId, invitedUserName
+  // roomType - if absent created a public room.
+  // callback - if present is invoked with the room upon creation of the room
+  // inviteUserId - if present is the id of a user being invited to a private chat room.
+  // inviteUserName - if present is the username of a user being invited to the private room.
+  //
+  // inviteUserId/inviteUserName are shortcuts to faciliatate creation of rooms with metadata
+  // that make it easier to determine who the two parties are.  It's duplication of data but
+  // viewed as quicker than going back to the DB for what will be used for visible info and
+  // potentially debug info.
+  Firechat.prototype.createRoom = function(roomName, roomType, callback, invitedUserId, invitedUserName) {
     var self = this,
-        newRoomRef = this._roomRef.push();
+        newRoomRef;
+
+    if (roomType && roomType === 'private') {
+      newRoomRef = this._roomRef.child(roomName);
+    } else {
+      newRoomRef = this._roomRef.push();
+    }
 
     var newRoom = {
       id: newRoomRef.name(),
       name: roomName,
       type: roomType || 'public',
       createdByUserId: this._userId,
-      createdAt: Firebase.ServerValue.TIMESTAMP
+      createdByUserName: this._userName,
+      createdAt: Firebase.ServerValue.TIMESTAMP,
+      invitedUserId: invitedUserId || 'NA',
+      invitedUserName: invitedUserName || 'NA'
     };
 
     if (roomType === 'private') {
@@ -391,18 +411,23 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
   };
 
   // Create and automatically enter a new chat room.
-  Firechat.prototype.createRoomWithId = function(roomName, roomType, callback) {
+  // WDS: Will be removed prior to completion as it seems unnecessary
+  Firechat.prototype.createRoomWithId = function(roomName, displayName, roomType, callback) {
+console.log("createRoomWithId: CreatING room: " + roomName);
     var self = this,
         newRoomRef = this._roomRef.child(roomName);
 
     var newRoom = {
       id: newRoomRef.name(),
-      name: roomName,
+      name: displayName,
       type: roomType || 'public',
       createdByUserId: this._userId,
-      createdAt: Firebase.ServerValue.TIMESTAMP
+      createdByUserName: this._userName,
+      createdAt: Firebase.ServerValue.TIMESTAMP,
+      invitedUserId: 'NA',
+      invitedUserName: 'NA'
     };
-
+console.log("createRoomWithId: Created room: " + roomName);
     if (roomType === 'private') {
       newRoom.authorizedUsers = {};
       newRoom.authorizedUsers[this._userId] = true;
@@ -415,6 +440,22 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
       if (callback) {
         callback(newRoomRef.name());
       }
+    });
+  };
+
+  /*
+   * Get the info for the specified user.
+   */
+  Firechat.prototype.getUser = function(userId, callback) {
+    var self = this,
+        userRef = self._firebase.child('users').child(userId);
+    userRef.once('value', function(snapshot) {
+      var userInfo = snapshot.val();
+      var user = {
+        id: userInfo.id,
+        name: userInfo.name
+      };
+      callback(user);
     });
   };
 
@@ -448,9 +489,10 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
           name: self._userName
         }, null);
       }
-
+console.log("Firechat.enterRoom: Entering room: ");
       // Invoke our callbacks before we start listening for new messages.
-      self._onEnterRoom({ id: roomId, name: roomName });
+      self._onEnterRoom({ id: roomId, name: roomName, type: room.type, createdBy: room.createdByUserId, createdByUserName: room.createdByUserName,
+                          invitedUserId: room.invitedUserId, invitedUserName: room.invitedUserName });
 
       // Setup message listeners
       self._roomRef.child(roomId).once('value', function(snapshot) {
@@ -513,7 +555,7 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
       var userKey = friendUserId;
       var self = this;
       self._friendOnlineOfflineCb = cb;
-      console.log("Setting up to watch for: " + userKey + "  Value: " + self._friendList[friendUserId]);
+//      console.log("Setting up to watch for: " + userKey + "  Value: " + self._friendList[friendUserId]);
       var onlineRef = self._userIdsOnlineRef.child(userKey).child("online");
       var p = onlineRef.parent();
       var f = friendUserId;
@@ -521,8 +563,8 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
         var uk = f;
         if (online !== undefined && online !== null) {
           var oval = online.val();
-          console.log("UserKey: " + uk + "  Friend List: " + JSON.stringify(self._friendList));
-          console.log(onlineRef.parent().toString() + "   User: " + self._friendList[uk] + "  " + (oval ? "Is online" : "Is OFFLINE"));
+//          console.log("UserKey: " + uk + "  Friend List: " + JSON.stringify(self._friendList));
+//          console.log(onlineRef.parent().toString() + "   User: " + self._friendList[uk] + "  " + (oval ? "Is online" : "Is OFFLINE"));
           self._friendOnlineOfflineCb(uk, self._friendList[uk], oval);
         }
       });
@@ -540,7 +582,7 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
 
     // For each friend, setup a watch...
     for (var friend in self._friendList) {
-      console.log("setting up watch for \"" + friend + "\"");
+//      console.log("setting up watch for \"" + friend + "\"");
       this.setupWatch(friend, cb);
     }
   };
@@ -643,7 +685,15 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
   };
 
   // Invite a user to a specific chat room.
-  Firechat.prototype.inviteUser = function(userId, roomId) {
+  // userId - the user to invite to chat
+  // roomId - the room the user is being invited to chat in
+  // dontPrompt (optional) - if set and is true then do NOT prompt the user being invited
+  //    to chat.  This is to do away with the chat request/accept/decline dialog for users.
+  //    The idea is that users will just chat or ignore messages if they choose.  MAY start
+  //    using this as a feature to chat a user not currently friends with for permissions.
+  //
+  Firechat.prototype.inviteUser = function(userId, roomId, dontPrompt) {
+console.log("Firechat.inviteUser: inviting user " + userId + " to room " + roomId + " to chat");
     var self = this,
         sendInvite = function() {
           var inviteRef = self._firebase.child('users').child(userId).child('invites').push();
@@ -651,7 +701,8 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
             id: inviteRef.name(),
             fromUserId: self._userId,
             fromUserName: self._userName,
-            roomId: roomId
+            roomId: roomId,
+            dontPrompt: (dontPrompt ? dontPrompt : false)
           });
 
           // Handle listen unauth / failure in case we're kicked.
@@ -943,7 +994,38 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
     },
 
     _onEnterRoom: function(room) {
-      this.attachTab(room.id, room.name);
+      var self = this;
+console.log("_onEnterRoom: " + room.id + " - " + room.name);
+      var roomName = room.name;
+      if (room.type && room.type === "private") {
+        if (room.createdBy != self._user.id) {
+          roomName = room.createdByUserName;
+console.log("_onEnterRoom: attaching tab with name: " + roomName);
+          self.attachTab(room.id, roomName);
+        } else {
+          roomName = room.invitedUserName;
+          self.attachTab(room.id, room.invitedUserName);
+/*
+          // ??? look up authorized users and get name from there???
+          self._chat.getRoom(room.id, function(roomDetails) {
+            var othaGuyUserId;
+            for (var userId in roomDetails.authorizedUsers) {
+              console.log("_onEnterRoom: userId: " + userId);
+              if (userId != self._user.id) {
+                othaGuyUserId = userId;
+              }
+            }
+            self._chat.getUser(othaGuyUserId, function(user) {
+console.log("_onEnterRoom: attaching tab with name: " + user.name);
+              self.attachTab(roomDetails.id, user.name);
+            });
+          });
+ */
+        }
+      } else {
+console.log("_onEnterRoom: (public) attaching tab with name: " + roomName);
+        this.attachTab(room.id, roomName);
+      }
     },
     _onLeaveRoom: function(roomId) {
       this.removeTab(roomId);
@@ -967,21 +1049,27 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
     _onChatInvite: function(invitation) {
       var self = this;
       var template = FirechatDefaultTemplates["up-templates/prompt-invitation.html"];
-      var $prompt = this.prompt('Invite', template(invitation));
-      $prompt.find('a.close').click(function() {
-        $prompt.remove();
-        self._chat.declineInvite(invitation.id);
-      });
 
-      $prompt.find('[data-toggle=accept]').click(function() {
-        $prompt.remove();
+      if (invitation.dontPrompt === false) {
+        var $prompt = this.prompt('Invite', template(invitation));
+        $prompt.find('a.close').click(function() {
+          $prompt.remove();
+          self._chat.declineInvite(invitation.id);
+        });
+
+        $prompt.find('[data-toggle=accept]').click(function() {
+          $prompt.remove();
+          self._chat.acceptInvite(invitation.id);
+        });
+
+        $prompt.find('[data-toggle=decline]').click(function() {
+          $prompt.remove();
+          self._chat.declineInvite(invitation.id);
+        });
+      } else {
+        // No prompt, just accept the invitation to drive the states.
         self._chat.acceptInvite(invitation.id);
-      });
-
-      $prompt.find('[data-toggle=decline]').click(function() {
-        $prompt.remove();
-        self._chat.declineInvite(invitation.id);
-      });
+      }
     },
     _onChatInviteResponse: function(invitation) {
       if (!invitation.status) return;
@@ -990,18 +1078,25 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
           template = FirechatDefaultTemplates["up-templates/prompt-invite-reply.html"],
           $prompt;
 
-      if (invitation.status && invitation.status === 'accepted') {
+      if (invitation.status && invitation.status === 'accepted' && invitation.dontPrompt === false) {
         $prompt = this.prompt('Accepted', template(invitation));
         this._chat.getRoom(invitation.roomId, function(room) {
-          self.attachTab(invitation.roomId, room.name);
+//console.log("_onChatInviteResponse: " + invitation.roomId + " - " + room.name);
+//          self.attachTab(invitation.roomId, room.name);
+console.log("_onChatInviteResponse: " + invitation.roomId + " - " + room.invitedUserName);
+          self.attachTab(invitation.roomId, room.invitedUserName);
         });
       } else {
-        $prompt = this.prompt('Declined', template(invitation));
+        if (invitation.dontPrompt === false) {
+          $prompt = this.prompt('Declined', template(invitation));
+        }
       }
 
-      $prompt.find('a.close').click(function() {
-        $prompt.remove();
-      });
+      if (invitation.dontPrompt === false) {
+        $prompt.find('a.close').click(function() {
+          $prompt.remove();
+        });
+      }
     },
 
     // Events related to admin or moderator notifications.
@@ -1030,7 +1125,7 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
    * callback for monitored friends online/offline status change.
    */
   FirechatUI.prototype._onFriendStatusChange = function(friendUserId, friendUserName, online) {
-    console.log("_onFriendStatusChange: " + friendUserId + ": " + friendUserName + "  Online? " + online);
+//    console.log("_onFriendStatusChange: " + friendUserId + ": " + friendUserName + "  Online? " + online);
     this._userAddFriendsCb(friendUserId, friendUserName, online);
 //    this._userAddFriendsCb();
   };
@@ -1452,7 +1547,7 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
               var roomName = 'Private Chat';
               self._chat.createRoom(roomName, 'private', function(roomId) {
                 self._chat.inviteUser(userId, roomId, roomName);
-              });
+              }, userId, userName);
             });
           }
         };
@@ -1685,7 +1780,8 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
 
     var room = {
       id: roomId,
-      name: roomName
+      name: roomName,
+      createdBy: "default"
     };
 
     // Populate and render the tab content template.
