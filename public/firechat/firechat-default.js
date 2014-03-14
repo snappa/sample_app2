@@ -1125,9 +1125,7 @@ console.log("_onChatInviteResponse: " + invitation.roomId + " - " + room.invited
    * callback for monitored friends online/offline status change.
    */
   FirechatUI.prototype._onFriendStatusChange = function(friendUserId, friendUserName, online) {
-//    console.log("_onFriendStatusChange: " + friendUserId + ": " + friendUserName + "  Online? " + online);
     this._userAddFriendsCb(friendUserId, friendUserName, online);
-//    this._userAddFriendsCb();
   };
 
 
@@ -1151,9 +1149,99 @@ console.log("_onChatInviteResponse: " + invitation.roomId + " - " + room.invited
     });
   };
 
+  /**
+   * Add a list of friends to monitor for online/offline status changes.
+   *
+   * friends - an addociative array indexed by userId with the contents being the userName
+   *       of the friend being monitored.  The userName is the monitored user's display name
+   * 
+   * cb - this is the status change callback passed in by the app monitoring for state
+   *      changes.  The callback signature should be:
+   *      statusChangeCallback(userId, userName, online) where:
+   *      userId - the id of the friend passed in to be monitored.
+   *      userName - the user's name passed in associated with the userId being monitored
+   *      online - a boolean value of true (indicating the user is online) or false (offline)
+   */
   FirechatUI.prototype.addFriendsToWatch = function(friends, cb) {
     this._userAddFriendsCb = cb;
     this._chat.addFriendsToWatch(friends, this._onFriendStatusChange.bind(this));
+  };
+
+
+/* BEGIN internal functions */
+  /*
+   * isValidChatUserId enforces the rules for valid characters in a chat userId.  This
+   * is typically an integer but can be any UUID sans the following characters:
+      . (period)
+      $ (dollar sign)
+      [ (left square bracket)
+      ] (right square bracket)
+      # (hash or pound sign)
+      / (forward slash)
+   */
+  function isValidChatUserId(userId) {
+    if (userId.indexOf(".") >= 0 || userId.indexOf("$") >= 0 || userId.indexOf("[") >= 0 ||
+        userId.indexOf("]") >= 0 || userId.indexOf("#") >= 0 || userId.indexOf("/") >= 0) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  function makeChatName(user1, user2) {
+    var chatName = "";
+    var user1Id = user1;
+    var user2Id = user2;
+    if (user1Id < user2Id) {
+      chatName = user1Id + "-" + user2Id;
+    } else {
+      chatName = user2Id + "-" + user1Id;
+    }
+    return chatName;
+  }
+
+/* END internal functions */
+
+  /**
+   * startChat initiates a chat session between the current active user and the specified
+   * user identified by the userToChat.  If a user is online this will cause a notification
+   * and chat UI to open on the user's app window.  Messages can then be sent between
+   * the two users.  If a user is NOT online any messages sent to that user will be
+   * queued for deferred delivery to the specified user when they go online.
+   *
+   * User ID's can NOT contain the following characters:
+   * (".","$","[","]","#","/") 
+   *
+   * The userToChat used for a specifif user must be the same ID generated for that user each
+   * time they use the system in order for them to retrieve their messages from past sessions.
+   */
+  FirechatUI.prototype.startChat = function(userToChat) {
+    var self = this;
+    //TODO: validate userId and throw exception if invalid.
+
+    if (!isValidChatUserId(userToChat)) {
+      alert("\"" + userToChat + "\" is an invalid userId containing invalid characters.  Can not start chat.");
+      return;
+    }
+    var pRoomId = makeChatName(this._user.id, userToChat);
+
+    self._chat.getUser(userToChat, function(user) {
+
+      self._chat.getRoom(pRoomId, function(room) {
+        if (room === undefined || room === null) {
+          self._chat.createRoom(pRoomId, "private" , function(roomId) {
+
+        //  console.log("startChat: inviting user: " + user.name + " to private chat.");
+            self._chat.inviteUser(userToChat, pRoomId, true);
+          }, userToChat, user.name);
+        } else {
+  //        alert("Found room \"" + pRoomId + "\"" );
+  //        internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
+          internalChat.inviteUser(userToChat, pRoomId, true);
+        }
+      });
+
+    });
   };
 
   /**
