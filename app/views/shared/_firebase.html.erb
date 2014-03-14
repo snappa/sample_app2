@@ -3,80 +3,23 @@
 <!-- Download from https://github.com/firebase/Firechat -->
 <link rel="stylesheet" href="/firechat/firechat-default.css" />
 <script src="/firechat/firechat-default.js"></script>
-<!--
-  -- WDS: Test for the findUsers functionality.
-  --
-<form class="form-inline">
-  <input type="text" id="prefix" name="prefix" class="input-medium" >
-  <button id="find-users" class="btn btn-primary btn-small">Find Users</button>
-</form>
--->
+
+<!-- Firechat content area. -->
 <div id="firechat-wrapper"></div>
+
 <script type='text/javascript'>
-  var chatRef = new Firebase('https://firechattest.firebaseio.com/chat');
-//  alert("FirebaseToken: <%= @myFirebaseToken %>  User: <%= current_user.email %>  UserName <%= current_user.name %>");
-  chatRef.auth("<%= @myFirebaseToken %>", function(error) {
-    if(error) {
-      console.log("Login Failed!", error);
-    } else {
-      console.log("Login Succeeded!");
-    }
-  });
 
-  var chat = undefined;
-  var firechat = undefined;
-  var chatRooms = {};
-
-/*
- * Function that translated a userId to a Firebase UserID.
- * WDS: Decided to change the API to enforce legal userIds with no:
-    . (period)
-    $ (dollar sign)
-    [ (left square bracket)
-    ] (right square bracket)
-    # (hash or pound sign)
-    / (forward slash)
- *
-  function createdByUserId(userId) {
-    // Replace all . with _ in the userId since this will be the user's id in the path.
-    userId = userId.replace(/\./g,"_");
-    userId = userId.replace(/\@/g,"-");
-    return userId.toLowerCase();
-  }
- */
-
-  friendStateChangeCallback = function(friendId, friendUsername, online) {
-//    console.log("Top level friend status callback: FriendID: " + friendId + "  FriendUserName: " + friendUsername + "  Is Online? " + online);
-
-    //online-friends
-    if ($("#online-friends").length > 0) {
-      if ($("#"+friendId+"-online").length > 0) {
-        $("#online-friend-"+friendId).text(friendUsername + " - " + (online ? "ONLINE":"OFFLINE"));
-      } else {
-        $("#online-friends").append("<li id='"+friendId+"-online'><a href='#'><span id='online-friend-" + friendId + "'>" + friendUsername + " - " + (online ? "ONLINE":"OFFLINE") + "</span></a></li>");
-      }
-/**/
-/**/
-//      alert("state change callback.  User: " + friendUsername + " is " + (online ? "ONLINE":"OFFLINE"));
-    } else {
-//      alert("online-friends DOES NOT EXIST");
-    }
-  };
-  
-
-function makeChatName(user1, user2) {
-  var chatName = "";
-//  var user1Id = createdByUserId(user1);
-//  var user2Id = createdByUserId(user2);
-  var user1Id = user1;
-  var user2Id = user2;
-  if (user1Id < user2Id) {
-    chatName = user1Id + "-" + user2Id;
-  } else {
-    chatName = user2Id + "-" + user1Id;
-  }
-  return chatName;
-}
+// Ruby code to generate a unique userIdPrefix.  This was created to let the same code
+// run on both a local test server and a remote server that talks to the same Firebase
+// instance.  This prevents collisions in the user namespace.
+//
+<% if ((request.domain != nil && request.domain.downcase().eql?("localhost")) ||
+        request.host.index("192.168") == 0)
+ %>
+  var userIdPrefix = "local";
+<% else %>
+  var userIdPrefix = "remote";
+<% end %>
 
 /*
  * isValidChatUserId enforces the rules for valid characters in a chat userId.  This
@@ -111,150 +54,92 @@ function makeChatUserId(userId) {
   }
 }
 
-/* 
- * startChat takes a userId created by makeChatUserId and starts a chat session
- * between the two users.
+/**
+ * startFirechat is invoked by the click handler to start a chat between this user and
+ * the specified user identified by userToChat
  */
-function startChat(userToChat) {
-// WDS: See if we can get a specific room...
-    var internalChat = chat.getChat();
-    var pRoomId = makeChatName(makeChatUserId("<%=current_user.id%>"), userToChat);
-
-    internalChat.getUser(userToChat, function(user) {
-
-//      alert("User to chat is: " + JSON.stringify(user));
-      internalChat.getRoom(pRoomId, function(room) {
-        if (room === undefined || room === null) {
-  //        alert("Could not find room\"" + pRoomId + "\"");
-
-          internalChat.createRoom(pRoomId, "private" , function(roomId) {
-  //          alert("Created room: " + roomId);
-
-  //          internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
-  console.log("startChat: inviting user: " + user.name + " to private chat.");
-            internalChat.inviteUser(userToChat, pRoomId, true);
-          }, userToChat, user.name);
-        } else {
-  //        alert("Found room \"" + pRoomId + "\"" );
-  //        internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
-          internalChat.inviteUser(userToChat, pRoomId, true);
-        }
-      });
-
-    })
+function startFirechat(userToChat) {
+  chat.startChat(userToChat);
 }
 
-<% if ((request.domain != nil && request.domain.downcase().eql?("localhost")) ||
-        request.host.index("192.168") == 0)
- %>
-  var userIdPrefix = "local";
-<% else %>
-  var userIdPrefix = "remote";
-<% end %>
+/**
+ * friendStateChangeCallback is invoked when the state of a friend being monitored
+ * changes.  See the invocation of the addFriendsToWatch method invocation below.
+ *
+ * friendId - the userId of the friend being monitored
+ *
+ * friendUsername - the display name version of the friend being monitored.
+ *
+ * online - a boolean indicating the friend is online (true) or offline (false)
+ */
+var friendStateChangeCallback = function(friendId, friendUsername, online) {
+//    console.log("Top level friend status callback: FriendID: " + friendId + "  FriendUserName: " + friendUsername + "  Is Online? " + online);
+
+  //online-friends
+  if ($("#online-friends").length > 0) {
+    if ($("#"+friendId+"-online").length > 0) {
+      $("#online-friend-"+friendId).text(friendUsername + " - " + (online ? "ONLINE":"OFFLINE"));
+    } else {
+      $("#online-friends").append("<li id='"+friendId+"-online'><a href='#'><span id='online-friend-" + friendId + "'>" + friendUsername + " - " + (online ? "ONLINE":"OFFLINE") + "</span></a></li>");
+    }
+  } else {
+//      alert("online-friends DOES NOT EXIST");
+  }
+};
+
+  //
+  // Runtime code.
+  //
+
+  var friendsToWatch = {};
+  // Build up the 'friends to watch' list.  This is generated server side.  It is a 
+  // simplification using ALL registered users.  This would not typically use ALL users.
+  // It could be a complete friend list, some list subset based on user interactions,
+  // etc.
+<%
+   users = User.all;
+   count = 0
+   users.each do |user|
+     count += 1
+     if (count < 106 && (user.id != current_user.id))
+%>
+    friendsToWatch[makeChatUserId("<%= user.id %>")] = "<%= user.name %>";
+<%   end %>
+<% end -%>
+
+
+  var chatRef = new Firebase('https://firechattest.firebaseio.com/chat');
+  var chat = undefined;
+
+  // Setup the auth for this user.  The @myFirebaseToken is generated in the server code
+  // with the firebase secret and the user data.
+  // See README for details on how to generate the @myFirebaseToken.
+  chatRef.auth("<%= @myFirebaseToken %>", function(error) {
+    if(error) {
+      console.log("Login Failed!", error);
+    } else {
+      console.log("Login Succeeded!");
+    }
+  });
 
   $( document ).ready(function() {
     chat = new FirechatUI(chatRef, document.getElementById("firechat-wrapper"));
 
-    var friendToWatch = {};
-<%
-    users = User.all;
-    count = 0
-    users.each do |user|
-    count += 1
-    if (count < 106 && (user.id != current_user.id))
-%>
-    friendToWatch[makeChatUserId("<%= user.id %>")] = "<%= user.name %>";
-<%  end %>
-<% end -%>
-
     // Populate the list of friends to watch
-    for (friendId in friendToWatch) {
+    for (friendId in friendsToWatch) {
       if ($("#online-friends").length > 0) {
-        $("#online-friends").append("<li id='"+friendId+"-online'><a href='#'><span id='online-friend-" + friendId + "' uid='" + friendId + "'>" + friendToWatch[friendId] + " -  ???" + "</span></a></li>");
+        $("#online-friends").append("<li id='"+friendId+"-online'><a href='#'><span id='online-friend-" + friendId + "' uid='" + friendId + "'>" + friendsToWatch[friendId] + " -  ???" + "</span></a></li>");
 
         // Setup the click handler to initiate a chat
         $("#online-friend-" + friendId).click(function(event) {
           event.preventDefault();
-//        alert("would start chat with " + friendId + "  OR: " + $(this).attr("uid"));
-          startChat($(this).attr("uid"));
+          startFirechat($(this).attr("uid"));
         });
       }
     }
-    chat.addFriendsToWatch(friendToWatch, friendStateChangeCallback);
+    chat.addFriendsToWatch(friendsToWatch, friendStateChangeCallback);
 
-
-//    alert("<%= current_user.email %>");
     chat.setUser(makeChatUserId('<%= current_user.id %>'), '<%= current_user.name %>');
-//    alert("Chat setup");
-
-    // WDS: Experiment to see if I can hook right into Firechat.js and build my own UI
-    firechat = new Firechat(chatRef);
-    firechat.on("message-add", function(roomId, message) {
-//      var m = message;
-      console.log("Message sent to room: " + roomId + "  MSG Time: " + new Date(message.timestamp) + "  Message From Name: " + message.name + "  Message: " + message.message);
-    });
-    firechat.on("room-enter", function(roomId, message) {
-      console.log("Entered room..." + roomId.name);
-    });
-
-this.onChatInvite = function() {
-  alert("chat invite");
-}
-this.onChatInviteResponse = function() {
-  alert("chat invite response");
-}
-      // Bind events related to chat invitations.
-      firechat.on('room-invite', this.onChatInvite.bind(this));
-      firechat.on('room-invite-response', this.onChatInviteResponse.bind(this));
-
-//example-1@railstutorial_org
-
-    // Test to see if I can lookup a specific user by prefix.
-    $("#find-users").click(function(event) {
-      event.preventDefault();
-      var prefix = $("#prefix").val();
-//      alert("Looking for match for " + prefix);
-      firechat.getUsersByPrefix(prefix, undefined, undefined, 10, function(users) {
-        if ($.isEmptyObject(users)) {
-          alert("No match found for user prefix of \"" + prefix + "\"");
-        } else {
-          alert("Found " + JSON.stringify(users) + " users...");
-        }
-      });
-    });
-
-    firechat.getRoomList(function(rooms) {
-      console.log("getRoomList.  Total Rooms: " + (rooms == undefined ? "UNDEF":"NOT SURE"));
-      /**/
-//        firechat.$roomList.empty();
-        var roomInfo = "";
-        for (var roomId in rooms) {
-          var room = rooms[roomId];
-          if (room.type == "public") {
-            var newRoom = jQuery.extend(true, {}, room);
-            chatRooms[roomId] = newRoom;
-            if (room.name == "Channelle") {
-              firechat.enterRoom(roomId);
-            }
-          }
-          roomInfo += "Name: + " + room.name + "  Type: " + room.type + " Created At: " + new Date(room.createdAt) + "  By: " + room.createdByUserId + "\n";
-//          room.isRoomOpen = !!firechat.$messages[room.id];
-//          var $roomItem = $(template(room));
-//          $roomItem.children('a').bind('click', selectRoomListItem);
-//          self.$roomList.append($roomItem.toggle(true));
-        }
-        console.log(roomInfo);
-       /**/
-    });
-
   });
-
-  function onNewMessage(roomId, message) {
-    var userId = message.userId;
-    if (!this._user.muted || !this._user.muted[userId]) {
-      //this.showMessage(roomId, message);
-      alert("Received new message.");
-    }
-  }
 
 </script>
