@@ -9,17 +9,7 @@
 
 <script type='text/javascript'>
 
-// Ruby code to generate a unique userIdPrefix.  This was created to let the same code
-// run on both a local test server and a remote server that talks to the same Firebase
-// instance.  This prevents collisions in the user namespace.
-//
-<% if ((request.domain != nil && request.domain.downcase().eql?("localhost")) ||
-        request.host.index("192.168") == 0)
- %>
-  var userIdPrefix = "local";
-<% else %>
-  var userIdPrefix = "remote";
-<% end %>
+  var userIdPrefix = "<%= gen_user_id_prefix %>";
 
 /*
  * isValidChatUserId enforces the rules for valid characters in a chat userId.  This
@@ -30,6 +20,8 @@
     ] (right square bracket)
     # (hash or pound sign)
     / (forward slash)
+ *
+ * This is a helper function for validation purposes.
  */
 function isValidChatUserId(userId) {
   if (userId.indexOf(".") >= 0 || userId.indexOf("$") >= 0 || userId.indexOf("[") >= 0
@@ -40,19 +32,6 @@ function isValidChatUserId(userId) {
   }
 }
 
-/*
- * makeChatUserId takes a userId (typically an integer but can be any UUID sans 
- * (".","$","[","]","#","/") characters.  This is the unique ID used to identify the
- * user inside the chat system.
- */
-function makeChatUserId(userId) {
-  if (isValidChatUserId(userId)) {
-    return userIdPrefix + "-chat-user-" + userId;
-  } else {
-    alert("\"" + userId + "\" is not a valid chat userId.  It contains one or more of the following illegal characters '. $ ] [ # /'");
-    return undefined;
-  }
-}
 
 /**
  * startFirechat is invoked by the click handler to start a chat between this user and
@@ -103,7 +82,7 @@ var friendStateChangeCallback = function(friendId, friendUsername, online) {
      count += 1
      if (count < 106 && (user.id != current_user.id))
 %>
-    friendsToWatch[makeChatUserId("<%= user.id %>")] = "<%= user.name %>";
+    friendsToWatch["<%= make_chat_user_id(user) %>"] = "<%= user.name %>";
 <%   end %>
 <% end -%>
 
@@ -139,7 +118,7 @@ var friendStateChangeCallback = function(friendId, friendUsername, online) {
     }
     chat.addFriendsToWatch(friendsToWatch, friendStateChangeCallback);
 
-    chat.setUser(makeChatUserId('<%= current_user.id %>'), '<%= current_user.name %>');
+    chat.setUser('<%= make_chat_user_id(current_user) %>', '<%= current_user.name %>');
   });
 
 </script>
