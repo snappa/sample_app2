@@ -7,7 +7,7 @@ this["FirechatDefaultTemplates"]["up-templates/layout-popout.html"] = function(o
 
 this["FirechatDefaultTemplates"]["up-templates/message-context-menu.html"] = function(obj) {obj || (obj = {});var __t, __p = '', __e = _.escape, __j = Array.prototype.join;function print() { __p += __j.call(arguments, '') }with (obj) {__p += '<div data-toggle=\'firechat-contextmenu\' class=\'contextmenu\' data-message-id=\'' +__e( id ) +'\'>\n<ul>\n<li><a href=\'#!\' data-event=\'firechat-user-warn\'>Warn User</a></li>\n'; if (allowKick) { ;__p += '\n<li><a href=\'#!\' data-event=\'firechat-user-kick\'>Kick User</a></li>\n'; } ;__p += '\n<li><a href=\'#!\' data-event=\'firechat-user-suspend-hour\'>Suspend User (1 Hour)</a></li>\n<li><a href=\'#!\' data-event=\'firechat-user-suspend-day\'>Suspend User (1 Day)</a></li>\n<li><a href=\'#!\' data-event=\'firechat-message-delete\'>Delete Message</a></li>\n</ul>\n</div>';}return __p};
 
-this["FirechatDefaultTemplates"]["up-templates/message.html"] = function(obj) {obj || (obj = {});var __t, __p = '', __e = _.escape, __j = Array.prototype.join;function print() { __p += __j.call(arguments, '') }with (obj) {__p += '<div class=\'message message-' +__e( type ) +' '; if (isSelfMessage) { ;__p += ' message-self '; } ;__p += '\' data-message-id=\'' +__e( id ) +'\' data-user-id=\'' +__e( userId ) +'\' data-user-name=\'' +__e( name ) +'\' data-class="firechat-message">\n<div class=\'clearfix\'>\n<label class=\'fourfifth\'>\n<strong class=\'name\' title=\'' +__e( name ) +'\'>' +__e( name ) +'</strong>\n<em>(' +__e( localtime ) +')</em>:\n</label>'; if (!disableActions) { ;__p += '\n<label class=\'fifth alignright\'>\n<a href=\'#!\' data-event=\'firechat-user-chat\' class=\'icon user-chat\' title=\'Invite to Private Chat\'>&nbsp;</a>\n<a href=\'#!\' data-event=\'firechat-user-mute-toggle\' class=\'icon user-mute\' title=\'Mute User\'>&nbsp;</a>\n</label>\n'; } ;__p += '</div>\n<div class=\'clearfix message-content\'>\n' +((__t = ( message )) == null ? '' : __t) +'\n</div>\n</div>';}return __p};
+this["FirechatDefaultTemplates"]["up-templates/message.html"] = function(obj) {obj || (obj = {});var __t, __p = '', __e = _.escape, __j = Array.prototype.join;function print() { __p += __j.call(arguments, '') }with (obj) {__p += '<div class=\'message message-' +__e( type ) +' '; if (isSelfMessage) { ;__p += ' message-self '; } ;__p += '\' data-message-id=\'' +__e( id ) +'\' data-user-id=\'' +__e( userId ) +'\' data-user-name=\'' +__e( name ) +'\' data-class="firechat-message">\n<div class=\'clearfix\'>\n<label class=\'fourfifth\'>\n<strong class=\'name\' title=\'' +__e( name ) +'\'>' +__e( name ) +'</strong>\n<em>(' +__e( localtime ) +')</em>:\n</label>'; if (disableActions === false) { ;__p += '\n<label class=\'fifth alignright\'>\n<a href=\'#!\' data-event=\'firechat-user-chat\' class=\'icon user-chat\' title=\'Invite to Private Chat\'>&nbsp;</a>\n<a href=\'#!\' data-event=\'firechat-user-mute-toggle\' class=\'icon user-mute\' title=\'Mute User\'>&nbsp;</a>\n</label>\n'; } ;__p += '</div>\n<div class=\'clearfix message-content\'>\n' +((__t = ( message )) == null ? '' : __t) +'\n</div>\n</div>';}return __p};
 
 this["FirechatDefaultTemplates"]["up-templates/prompt-alert.html"] = function(obj) {obj || (obj = {});var __t, __p = '', __e = _.escape;with (obj) {__p += '<div class=\'aligncenter clearfix\'>\n<h6>' +__e( message ) +'</h6>\n<p class=\'clearfix\'>\n<button type=\'button\' class=\'btn quarter right close\'>Close</button>\n</p>\n</div>';}return __p};
 
@@ -111,6 +111,10 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
 
     // A mapping of room IDs to a boolean indicating presence.
     this._rooms = {};
+
+    // hash indexed by roomId whose value is room specific info.
+    this._roomType = {};
+
 
     // A mapping of operations to re-queue on disconnect.
     this._presenceBits = {};
@@ -395,6 +399,8 @@ this["FirechatDefaultTemplates"]["up-templates/user-search-list-item.html"] = fu
       invitedUserName: invitedUserName || 'NA'
     };
 
+    self._roomType[newRoom.id] = newRoom.type;
+
     if (roomType === 'private') {
       newRoom.authorizedUsers = {};
       newRoom.authorizedUsers[this._userId] = true;
@@ -433,6 +439,8 @@ console.log("createRoomWithId: Created room: " + roomName);
       newRoom.authorizedUsers[this._userId] = true;
     }
 
+    self._roomType[newRoom.id] = newRoom.type;
+
     newRoomRef.set(newRoom, function(error) {
       if (!error) {
         self.enterRoom(newRoomRef.name());
@@ -441,6 +449,14 @@ console.log("createRoomWithId: Created room: " + roomName);
         callback(newRoomRef.name());
       }
     });
+  };
+
+  Firechat.prototype.getRoomType = function(roomId) {
+    if (this._roomType[roomId] !== undefined) {
+      return this._roomType[roomId];
+    } else {
+      return 'unknown';
+    }
   };
 
   /*
@@ -464,7 +480,7 @@ console.log("createRoomWithId: Created room: " + roomName);
     var self = this;
     self.getRoom(roomId, function(room) {
       var roomName = room.name;
-
+      self._roomType[roomId] = room.type;
       if (!roomId || !roomName) return;
 
       // Skip if we're already in this room.
@@ -1981,6 +1997,11 @@ console.log("_onChatInviteResponse: " + invitation.roomId + " - " + room.invited
       isSelfMessage   : (self._user && rawMessage.userId == self._user.id),
       disableActions  : (!self._user || rawMessage.userId == self._user.id)
     };
+
+    var roomType = self._chat.getRoomType(roomId);
+    if (roomType === 'private') {
+      message.disableActions = true;
+    }
 
     // While other data is escaped in the Underscore.js templates, escape and
     // process the message content here to add additional functionality (add links).
