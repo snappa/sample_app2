@@ -1078,8 +1078,10 @@ console.log("_onEnterRoom: (public) attaching tab with name: " + roomName);
           template = FirechatDefaultTemplates["up-templates/prompt-invite-reply.html"],
           $prompt;
 
-      if (invitation.status && invitation.status === 'accepted' && invitation.dontPrompt === false) {
-        $prompt = this.prompt('Accepted', template(invitation));
+      if (invitation.status && invitation.status === 'accepted') {
+        if (invitation.dontPrompt === false) {
+          $prompt = this.prompt('Accepted', template(invitation));
+        }
         this._chat.getRoom(invitation.roomId, function(room) {
 //console.log("_onChatInviteResponse: " + invitation.roomId + " - " + room.name);
 //          self.attachTab(invitation.roomId, room.name);
@@ -1237,7 +1239,7 @@ console.log("_onChatInviteResponse: " + invitation.roomId + " - " + room.invited
         } else {
   //        alert("Found room \"" + pRoomId + "\"" );
   //        internalChat.inviteUser(createdByUserId(userToChat), pRoomId);
-          internalChat.inviteUser(userToChat, pRoomId, true);
+          self._chat.inviteUser(userToChat, pRoomId, true);
         }
       });
 
