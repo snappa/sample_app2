@@ -113,6 +113,21 @@ var friendStateChangeCallback = function(friendId, friendUsername, online) {
         $("#online-friend-" + friendId).click(function(event) {
           event.preventDefault();
           startFirechat($(this).attr("uid"));
+          /*
+           * WDS: Might want to hook this when a new message arrives.  I initially had
+           *      the Firechat library do this on every new message but that could be
+           *      annoying if a user is in the middle of reading something on a page and
+           *      the page all of a sudden moves away.
+           *
+           *      Thinking I should put a hook in to the Firechat library so it can
+           *      invoke a callback to make some indicator on the page let the user
+           *      know there's a new message.  Callback could be a beep, flashing widget,
+           *      etc.
+           */
+          // Scroll to the firechat wrapper element so it's in front of the user.
+          $('html, body').animate({
+              scrollTop: $("#firechat-wrapper").offset().top
+          }, 500);
         });
       }
     }
