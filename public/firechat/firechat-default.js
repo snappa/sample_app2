@@ -467,6 +467,9 @@ console.log("createRoomWithId: Created room: " + roomName);
         userRef = self._firebase.child('users').child(userId);
     userRef.once('value', function(snapshot) {
       var userInfo = snapshot.val();
+      if (userInfo === null) {
+        return null;
+      }
       var user = {
         id: userInfo.id,
         name: userInfo.name
@@ -1244,7 +1247,11 @@ console.log("_onChatInviteResponse: " + invitation.roomId + " - " + room.invited
     var pRoomId = makeChatName(this._user.id, userToChat);
 
     self._chat.getUser(userToChat, function(user) {
-
+      if (user === null) {
+        // User doesn't exist.
+        // WDS: Should we create the user???  Send back an error???
+        return;
+      }
       self._chat.getRoom(pRoomId, function(room) {
         if (room === undefined || room === null) {
           self._chat.createRoom(pRoomId, "private" , function(roomId) {
